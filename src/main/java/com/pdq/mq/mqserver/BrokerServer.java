@@ -139,8 +139,35 @@ public class BrokerServer {
     }
 
     private Response process(Request request, Socket clientSocket) throws IOException, ClassNotFoundException {
-        //
         BasicArguments basicArguments = (BasicArguments) BinaryTool.fromBytes(request.getPayload());
+        boolean ret;
+        try {
+            ret = dispatch(request, basicArguments, clientSocket);
+        } catch (RuntimeException e) {
+            //非受检异常(ClassCastException/NPE 等)若向上逃逸, 服务端就不会写出响应,
+            //而客户端 waitResult() 没有超时机制, 会永久阻塞在等待响应上.
+            //这里兜底捕获并回一个 ok=false 的响应, 保证任何非法请求都不会挂死客户端.
+            e.printStackTrace();
+            System.out.println("[BrokerServer] 请求处理异常! type=" + request.getType());
+            ret = false;
+        }
+        //构造响应
+        BasicReturns basicReturns = new BasicReturns();
+        basicReturns.setChannelId(basicArguments.getChannelId());
+        basicReturns.setRid(basicArguments.getRid());
+        basicReturns.setOk(ret);
+        Response response = new Response();
+        byte[] payload = BinaryTool.toBytes(basicReturns);
+        response.setType(request.getType());
+        response.setLength(payload.length);
+        response.setPayload(payload);
+        System.out.println("[Response] rid=" + basicReturns.getRid() + ", channelId=" + basicReturns.getChannelId()
+                + ", type=" + response.getType() + ", length=" + response.getLength());
+        return response;
+    }
+
+    //把请求分派逻辑独立成方法, 便于在 process 中统一兜底非受检异常
+    private boolean dispatch(Request request, BasicArguments basicArguments, Socket clientSocket) throws IOException, ClassNotFoundException {
         boolean ret = true;
         //判断请求类型
         if (request.getType() == 0X1) {
@@ -170,8 +197,9 @@ public class BrokerServer {
             QueueBindArguments arguments = (QueueBindArguments) basicArguments;
             ret = virtualHost.queueBind(arguments.getExchangeName(), arguments.getQueueName(), arguments.getBindingKey());
         } else if (request.getType() == 0x8) {
-            //解除绑定
-            QueueBindArguments arguments = (QueueBindArguments) basicArguments;
+            //解除绑定: 客户端 Channel.queueUnbind 发送的是 QueueUnbindArguments,
+            //它与 QueueBindArguments 是兄弟类(都直接继承 BasicArguments), 不能互相强转
+            QueueUnbindArguments arguments = (QueueUnbindArguments) basicArguments;
             ret = virtualHost.queueUnbind(arguments.getExchangeName(), arguments.getQueueName());
         } else if (request.getType() == 0x9) {
             //订阅消息
@@ -223,19 +251,7 @@ public class BrokerServer {
         } else {
             System.out.println("[BrokerServer] type参数不合法! type=" + request.getType());
         }
-        //构造响应
-        BasicReturns basicReturns = new BasicReturns();
-        basicReturns.setChannelId(basicArguments.getChannelId());
-        basicReturns.setRid(basicArguments.getRid());
-        basicReturns.setOk(ret);
-        Response response = new Response();
-        byte[] payload = BinaryTool.toBytes(basicReturns);
-        response.setType(request.getType());
-        response.setLength(payload.length);
-        response.setPayload(payload);
-        System.out.println("[Response] rid=" + basicReturns.getRid() + ", channelId=" + basicReturns.getChannelId()
-                + ", type=" + response.getType() + ", length=" + response.getLength());
-        return response;
+        return ret;
     }
 
     private void writeResponse(Response response, DataOutputStream dataOutputStream) throws IOException {

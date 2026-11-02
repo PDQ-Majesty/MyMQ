@@ -18,11 +18,11 @@ jobs:
           java-version: '17'
           cache: maven
 
-      # 默认单测 + 集成测试(自动跳过 @Tag("perf"))并生成 JaCoCo 覆盖率
+      # 单元测试(41个用例, 自动跳过 @Tag("perf"))并生成 JaCoCo 覆盖率
       - name: Run tests with coverage
         run: ./mvnw test
 
-      # 性能基准单独跑, 输出吞吐/延迟分位数日志供趋势观察
+      # 性能基准单独跑, 输出吞吐/延迟分位数日志供趋势观察(当前无 perf 用例时不失败)
       - name: Run perf benchmark
         run: ./mvnw test -Dgroups=perf -Dsurefire.failIfNoSpecifiedTests=false
 
