@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.pdq.mq.mqserver.mapper.MetaMapper">
+    <update id="createExchangeTable">
+        create table if not exists exchange (
+            name varchar(50),
+            exchangeType int,
+            durable boolean,
+            autoDelete boolean,
+            arguments varchar(1024)
+        )
+    </update>
+    <update id="createQueueTable">
+        create table if not exists queue (
+            name varchar(50),
+            durable boolean,
+            autoDelete boolean,
+            exclusive boolean,
+            arguments varchar(1024)
+        )
+    </update>
+    <update id="createBindingTable">
+        create table if not exists binding (
+            exchangeName varchar(50),
+            queueName varchar(50),
+            bindingKey varchar(50)
+        )
+    </update>
+
+
+    <insert id="insertExchange" parameterType="com.pdq.mq.mqserver.core.Exchange">
+        insert into exchange values (#{name},#{exchangeType},#{durable},#{autoDelete},#{arguments});
+    </insert>
+
+    <delete id="deleteExchange" parameterType="java.lang.String">
+        delete from exchange where name = #{name}
+    </delete>
+
+
+    <select id="selectAllExchange" resultType="com.pdq.mq.mqserver.core.Exchange">
+        select * from exchange;
+    </select>
+
+    <insert id="insertQueue" parameterType="com.pdq.mq.mqserver.core.MSGQueue">
+        insert into queue values (#{name},#{durable},#{autoDelete},#{exclusive},#{arguments})
+    </insert>
+
+    <delete id="deleteQueue" parameterType="java.lang.String">
+        delete from queue where name = #{name}
+    </delete>
+
+    <select id="selectAllQueue" resultType="com.pdq.mq.mqserver.core.MSGQueue">
+        select * from queue;
+    </select>
+    <insert id="insertBinding" parameterType="com.pdq.mq.mqserver.core.Binding">
+        insert into binding values (#{exchangeName},#{queueName},#{bindingKey})
+    </insert>
+    <delete id="deleteBinding" parameterType="com.pdq.mq.mqserver.core.Binding">
+        delete from binding where exchangeName=#{exchangeName} and queueName=#{queueName}
+    </delete>
+    <select id="selectAllBinding" resultType="com.pdq.mq.mqserver.core.Binding">
+        select * from binding
+    </select>
+
+
+</mapper>

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # 默认单测 + 集成测试(自动跳过 @Tag("perf"))并生成 JaCoCo 覆盖率
+      - name: Run tests with coverage
+        run: ./mvnw test
+
+      # 性能基准单独跑, 输出吞吐/延迟分位数日志供趋势观察
+      - name: Run perf benchmark
+        run: ./mvnw test -Dgroups=perf -Dsurefire.failIfNoSpecifiedTests=false
+
+      - name: Upload surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports
+
+      - name: Upload jacoco coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco
